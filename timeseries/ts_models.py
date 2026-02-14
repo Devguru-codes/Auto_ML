@@ -4,21 +4,26 @@ Time-series models: ARIMA, Prophet, LSTM, GRU, Bidirectional LSTM
 import numpy as np
 import pandas as pd
 from typing import Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Statistical models
 try:
     from pmdarima import auto_arima
     ARIMA_AVAILABLE = True
-except ImportError:
+    logger.info("ARIMA model available (pmdarima)")
+except ImportError as e:
     ARIMA_AVAILABLE = False
-    print("Warning: pmdarima not available (ARIMA model disabled)")
+    logger.warning(f"pmdarima not available: {e}. ARIMA model disabled.")
 
 try:
     from prophet import Prophet
     PROPHET_AVAILABLE = True
-except ImportError:
+    logger.info("Prophet model available")
+except ImportError as e:
     PROPHET_AVAILABLE = False
-    print("Warning: prophet not available (Prophet model disabled)")
+    logger.warning(f"prophet not available: {e}. Prophet model disabled.")
 
 # Deep learning models
 try:
@@ -27,10 +32,12 @@ try:
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import LSTM, GRU, Bidirectional, Dense, Dropout
     from tensorflow.keras.callbacks import EarlyStopping
+    from utils.device_manager import DEVICE_TYPE, setup_tensorflow_device
     DEEP_LEARNING_AVAILABLE = True
-except ImportError:
+    logger.info(f"Deep learning models available. Using device: {DEVICE_TYPE}")
+except ImportError as e:
     DEEP_LEARNING_AVAILABLE = False
-    print("Warning: TensorFlow not available")
+    logger.warning(f"TensorFlow not available: {e}. Deep learning models disabled.")
 
 
 class ARIMAModel:
@@ -168,37 +175,46 @@ class LSTMModel:
         self.history = None
     
     def build_model(self, input_shape):
-        """Build LSTM architecture"""
-        if not DEEP_LEARNING_AVAILABLE:
-            raise ImportError("TensorFlow not installed")
-        
-        model = Sequential()
-        
-        # First LSTM layer
-        model.add(LSTM(
-            self.units,
-            return_sequences=True if self.layers > 1 else False,
-            input_shape=input_shape
-        ))
-        model.add(Dropout(self.dropout))
-        
-        # Additional LSTM layers
-        for i in range(1, self.layers):
-            return_seq = i < self.layers - 1
-            model.add(LSTM(self.units, return_sequences=return_seq))
+        """Build LSTM architecture with GPU support"""
+        try:
+            if not DEEP_LEARNING_AVAILABLE:
+                raise ImportError("TensorFlow not installed")
+            
+            # Configure device
+            device = setup_tensorflow_device()
+            logger.info(f"Building LSTM model on {device}")
+            
+            model = Sequential()
+            
+            # First LSTM layer
+            model.add(LSTM(
+                self.units,
+                return_sequences=True if self.layers > 1 else False,
+                input_shape=input_shape
+            ))
             model.add(Dropout(self.dropout))
+            
+            # Additional LSTM layers
+            for i in range(1, self.layers):
+                return_seq = i < self.layers - 1
+                model.add(LSTM(self.units, return_sequences=return_seq))
+                model.add(Dropout(self.dropout))
+            
+            # Output layer
+            model.add(Dense(1))
+            
+            # Compile
+            model.compile(
+                optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
+                loss='mse',
+                metrics=['mae']
+            )
+            
+            return model
         
-        # Output layer
-        model.add(Dense(1))
-        
-        # Compile
-        model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
-            loss='mse',
-            metrics=['mae']
-        )
-        
-        return model
+        except Exception as e:
+            logger.error(f"Error building LSTM model: {e}")
+            raise
     
     def fit(self, X_train, y_train, X_val=None, y_val=None):
         """Train LSTM model"""
@@ -266,37 +282,46 @@ class GRUModel:
         self.history = None
     
     def build_model(self, input_shape):
-        """Build GRU architecture"""
-        if not DEEP_LEARNING_AVAILABLE:
-            raise ImportError("TensorFlow not installed")
-        
-        model = Sequential()
-        
-        # First GRU layer
-        model.add(GRU(
-            self.units,
-            return_sequences=True if self.layers > 1 else False,
-            input_shape=input_shape
-        ))
-        model.add(Dropout(self.dropout))
-        
-        # Additional GRU layers
-        for i in range(1, self.layers):
-            return_seq = i < self.layers - 1
-            model.add(GRU(self.units, return_sequences=return_seq))
+        """Build GRU architecture with GPU support"""
+        try:
+            if not DEEP_LEARNING_AVAILABLE:
+                raise ImportError("TensorFlow not installed")
+            
+            # Configure device
+            device = setup_tensorflow_device()
+            logger.info(f"Building GRU model on {device}")
+            
+            model = Sequential()
+            
+            # First GRU layer
+            model.add(GRU(
+                self.units,
+                return_sequences=True if self.layers > 1 else False,
+                input_shape=input_shape
+            ))
             model.add(Dropout(self.dropout))
+            
+            # Additional GRU layers
+            for i in range(1, self.layers):
+                return_seq = i < self.layers - 1
+                model.add(GRU(self.units, return_sequences=return_seq))
+                model.add(Dropout(self.dropout))
+            
+            # Output layer
+            model.add(Dense(1))
+            
+            # Compile
+            model.compile(
+                optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
+                loss='mse',
+                metrics=['mae']
+            )
+            
+            return model
         
-        # Output layer
-        model.add(Dense(1))
-        
-        # Compile
-        model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
-            loss='mse',
-            metrics=['mae']
-        )
-        
-        return model
+        except Exception as e:
+            logger.error(f"Error building GRU model: {e}")
+            raise
     
     def fit(self, X_train, y_train, X_val=None, y_val=None):
         """Train GRU model"""
@@ -362,36 +387,45 @@ class BidirectionalLSTMModel:
         self.history = None
     
     def build_model(self, input_shape):
-        """Build Bidirectional LSTM architecture"""
-        if not DEEP_LEARNING_AVAILABLE:
-            raise ImportError("TensorFlow not installed")
-        
-        model = Sequential()
-        
-        # First Bidirectional LSTM layer
-        model.add(Bidirectional(
-            LSTM(self.units, return_sequences=True if self.layers > 1 else False),
-            input_shape=input_shape
-        ))
-        model.add(Dropout(self.dropout))
-        
-        # Additional Bidirectional LSTM layers
-        for i in range(1, self.layers):
-            return_seq = i < self.layers - 1
-            model.add(Bidirectional(LSTM(self.units, return_sequences=return_seq)))
+        """Build Bidirectional LSTM architecture with GPU support"""
+        try:
+            if not DEEP_LEARNING_AVAILABLE:
+                raise ImportError("TensorFlow not installed")
+            
+            # Configure device
+            device = setup_tensorflow_device()
+            logger.info(f"Building Bidirectional LSTM model on {device}")
+            
+            model = Sequential()
+            
+            # First Bidirectional LSTM layer
+            model.add(Bidirectional(
+                LSTM(self.units, return_sequences=True if self.layers > 1 else False),
+                input_shape=input_shape
+            ))
             model.add(Dropout(self.dropout))
+            
+            # Additional Bidirectional LSTM layers
+            for i in range(1, self.layers):
+                return_seq = i < self.layers - 1
+                model.add(Bidirectional(LSTM(self.units, return_sequences=return_seq)))
+                model.add(Dropout(self.dropout))
+            
+            # Output layer
+            model.add(Dense(1))
+            
+            # Compile
+            model.compile(
+                optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
+                loss='mse',
+                metrics=['mae']
+            )
+            
+            return model
         
-        # Output layer
-        model.add(Dense(1))
-        
-        # Compile
-        model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
-            loss='mse',
-            metrics=['mae']
-        )
-        
-        return model
+        except Exception as e:
+            logger.error(f"Error building Bidirectional LSTM model: {e}")
+            raise
     
     def fit(self, X_train, y_train, X_val=None, y_val=None):
         """Train Bidirectional LSTM model"""

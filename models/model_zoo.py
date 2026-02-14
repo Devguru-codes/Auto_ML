@@ -6,58 +6,101 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from xgboost import XGBClassifier, XGBRegressor
 from config.config import CLASSIFICATION_MODELS, REGRESSION_MODELS, NEURAL_NET_THRESHOLD
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Neural network imports
 try:
     from scikeras.wrappers import KerasClassifier, KerasRegressor
     import tensorflow as tf
     from tensorflow import keras
+    from utils.device_manager import DEVICE_TYPE, setup_tensorflow_device
     NEURAL_NET_AVAILABLE = True
-except ImportError:
+    logger.info(f"Neural networks available. Using device: {DEVICE_TYPE}")
+except ImportError as e:
     NEURAL_NET_AVAILABLE = False
-    print("Warning: TensorFlow/scikeras not available. Neural networks will be disabled.")
+    logger.warning(f"TensorFlow/scikeras not available: {e}. Neural networks will be disabled.")
 
 
 def create_nn_classifier(hidden_layer_sizes=(64, 32), learning_rate=0.001, input_dim=10):
-    """Create a neural network classifier"""
-    model = keras.Sequential()
-    model.add(keras.layers.Input(shape=(input_dim,)))
+    """
+    Create a neural network classifier with GPU support
     
-    # Add hidden layers
-    for units in hidden_layer_sizes:
-        model.add(keras.layers.Dense(units, activation='relu'))
-        model.add(keras.layers.Dropout(0.3))
+    Args:
+        hidden_layer_sizes: Tuple of hidden layer sizes
+        learning_rate: Learning rate for optimizer
+        input_dim: Input dimension
     
-    # Output layer (will be configured by KerasClassifier)
-    model.add(keras.layers.Dense(1, activation='sigmoid'))
+    Returns:
+        Compiled Keras model
+    """
+    try:
+        # Ensure device is configured
+        device = setup_tensorflow_device()
+        logger.info(f"Creating NN classifier on {device}")
+        
+        model = keras.Sequential()
+        model.add(keras.layers.Input(shape=(input_dim,)))
+        
+        # Add hidden layers
+        for units in hidden_layer_sizes:
+            model.add(keras.layers.Dense(units, activation='relu'))
+            model.add(keras.layers.Dropout(0.3))
+        
+        # Output layer (will be configured by KerasClassifier)
+        model.add(keras.layers.Dense(1, activation='sigmoid'))
+        
+        model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            loss='sparse_categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        return model
     
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-        loss='sparse_categorical_crossentropy',
-        metrics=['accuracy']
-    )
-    return model
+    except Exception as e:
+        logger.error(f"Error creating NN classifier: {e}")
+        raise
 
 
 def create_nn_regressor(hidden_layer_sizes=(64, 32), learning_rate=0.001, input_dim=10):
-    """Create a neural network regressor"""
-    model = keras.Sequential()
-    model.add(keras.layers.Input(shape=(input_dim,)))
+    """
+    Create a neural network regressor with GPU support
     
-    # Add hidden layers
-    for units in hidden_layer_sizes:
-        model.add(keras.layers.Dense(units, activation='relu'))
-        model.add(keras.layers.Dropout(0.3))
+    Args:
+        hidden_layer_sizes: Tuple of hidden layer sizes
+        learning_rate: Learning rate for optimizer
+        input_dim: Input dimension
     
-    # Output layer
-    model.add(keras.layers.Dense(1))
+    Returns:
+        Compiled Keras model
+    """
+    try:
+        # Ensure device is configured
+        device = setup_tensorflow_device()
+        logger.info(f"Creating NN regressor on {device}")
+        
+        model = keras.Sequential()
+        model.add(keras.layers.Input(shape=(input_dim,)))
+        
+        # Add hidden layers
+        for units in hidden_layer_sizes:
+            model.add(keras.layers.Dense(units, activation='relu'))
+            model.add(keras.layers.Dropout(0.3))
+        
+        # Output layer
+        model.add(keras.layers.Dense(1))
+        
+        model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            loss='mse',
+            metrics=['mae']
+        )
+        return model
     
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-        loss='mse',
-        metrics=['mae']
-    )
-    return model
+    except Exception as e:
+        logger.error(f"Error creating NN regressor: {e}")
+        raise
 
 
 class ModelZoo:

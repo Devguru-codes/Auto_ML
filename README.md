@@ -20,6 +20,10 @@
 - **Advanced Time-Series**:
   - **Models**: ARIMA, Prophet, LSTM, GRU, Bidirectional LSTM
   - **Features**: Auto-seasonality detection, stationarity testing, sequence generation
+- **GPU Acceleration**:
+  - **Auto-Detection**: Seamlessly uses CUDA-enabled GPUs for deep learning models
+  - **Robust Fallback**: Automatically switches to CPU if GPU is unavailable
+  - **Error Handling**: Comprehensive global exception management
 - **Explainability**: SHAP values and Feature Importance charts
 
 ### 🚀 Production Ready

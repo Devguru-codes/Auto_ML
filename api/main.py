@@ -14,6 +14,14 @@ import json
 import uuid
 from datetime import datetime
 import traceback
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,6 +43,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"Global exception: {exc}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"message": "Internal Server Error", "detail": str(exc)},
+    )
 
 # Create necessary directories
 UPLOAD_DIR = "uploads"
@@ -128,6 +146,7 @@ async def train_model(file_id: str, request: TrainRequest, background_tasks: Bac
 def train_model_task(job_id: str, file_path: str, request: TrainRequest):
     """Background training task"""
     try:
+        logger.info(f"Starting training job {job_id} for file {file_path}")
         jobs[job_id]["status"] = "running"
         jobs[job_id]["progress"] = 10
         
@@ -172,6 +191,8 @@ def train_model_task(job_id: str, file_path: str, request: TrainRequest):
         jobs[job_id]["result"] = model_info
         
     except Exception as e:
+        logger.error(f"Training job {job_id} failed: {e}")
+        logger.error(traceback.format_exc())
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
         jobs[job_id]["traceback"] = traceback.format_exc()
