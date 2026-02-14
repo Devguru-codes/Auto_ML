@@ -126,6 +126,15 @@ Customize behavior in `config/config.py`:
 
 ---
 
+## 🔮 Future Work
+
+- [ ] **Advanced Frontend**: Create a dedicated, more complex frontend using FastAPI and React/Vue
+- [ ] **Cloud Integration**: Native support for AWS S3 and Google Cloud Storage
+- [ ] **Model Registry**: Integration with MLflow or similar tools
+- [ ] **Advanced Ensembling**: Stacking and blending of multiple models
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please submit a Pull Request.
