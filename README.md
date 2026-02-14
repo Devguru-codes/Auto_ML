@@ -44,7 +44,16 @@ git clone <your-repo-url>
 cd AutoML
 
 # Install dependencies
-pip install -r requirements.txt
+# Install dependencies for your hardware
+
+## Option A: GPU (Recommended for NVIDIA users) 🚀
+# Requires CUDA 11.8 and cuDNN 8.6
+pip install -r requirements-gpu.txt
+
+## Option B: CPU Only (Default) 💻
+# Works on all machines, but slower training
+pip install -r requirements-cpu.txt
+
 ```
 
 ### 2️⃣ Run Locally (Web Interface)
