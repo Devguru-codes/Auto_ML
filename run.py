@@ -11,14 +11,17 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from utils.utils import validate_csv, validate_target_column, save_model, save_json, create_artifacts_dir
 from utils.problem_detector import ProblemDetector
+from utils.visualizer import ModelVisualizer
 from preprocessing.preprocessor import AutoPreprocessor
 from models.model_zoo import ModelZoo
-from tuner.tuner import HyperparameterTuner
+from tuner.optuna_tuner import OptunaHyperparameterTuner  # Changed to Optuna
 from evaluator.evaluator import ModelEvaluator
 from explainability.shap_explainer import ShapExplainer
 from config.config import (
     ARTIFACTS_DIR, MODEL_FILENAME, PREPROCESSOR_FILENAME, 
     METRICS_FILENAME, SHAP_PLOT_FILENAME, FEATURE_IMPORTANCE_FILENAME,
+    MODEL_COMPARISON_FILENAME, CONFUSION_MATRIX_FILENAME, 
+    ROC_CURVES_FILENAME, METRICS_SUMMARY_FILENAME,
     CLASSIFICATION_METRICS, REGRESSION_METRICS
 )
 
@@ -75,7 +78,11 @@ def run_automl(csv_path: str, target_column: str, metric: str = None, test_size:
     
     # Step 5: Initialize model zoo
     print("\n[5/8] Initializing model zoo...")
-    model_zoo = ModelZoo(problem_type)
+    model_zoo = ModelZoo(
+        problem_type=problem_type,
+        n_samples=len(X_train),
+        input_dim=X_train_processed.shape[1]
+    )
     models = model_zoo.get_all_models()
     param_grids = model_zoo.get_all_param_grids()
     
@@ -90,9 +97,9 @@ def run_automl(csv_path: str, target_column: str, metric: str = None, test_size:
     
     print(f"Using scoring metric: {scoring}")
     
-    # Step 6: Hyperparameter tuning
-    print("\n[6/8] Tuning hyperparameters...")
-    tuner = HyperparameterTuner()
+    # Step 6: Hyperparameter tuning with Optuna
+    print("\n[6/9] Tuning hyperparameters with Optuna...")
+    tuner = OptunaHyperparameterTuner(n_trials=50, timeout=600)  # Optuna tuner
     tuned_models = tuner.tune_all_models(models, param_grids, X_train_processed, y_train, scoring)
     
     # Step 7: Evaluate models
@@ -106,7 +113,7 @@ def run_automl(csv_path: str, target_column: str, metric: str = None, test_size:
     print(f"\nBest model: {best_model_name}")
     
     # Step 8: Generate explanations
-    print("\n[8/8] Generating explanations...")
+    print("\n[8/9] Generating explanations...")
     try:
         explainer = ShapExplainer(
             best_model, 
@@ -121,6 +128,35 @@ def run_automl(csv_path: str, target_column: str, metric: str = None, test_size:
         explainer.plot_feature_importance(X_test_processed, save_path=feature_importance_path)
     except Exception as e:
         print(f"Warning: Could not generate SHAP explanations: {e}")
+    
+    # Step 9: Generate comprehensive visualizations
+    print("\n[9/9] Generating visualizations...")
+    try:
+        visualizer = ModelVisualizer(artifacts_path)
+        
+        # Model comparison chart
+        comparison_path = os.path.join(artifacts_path, MODEL_COMPARISON_FILENAME)
+        visualizer.plot_model_comparison(results_df, problem_type, save_path=comparison_path)
+        
+        # Metrics summary dashboard
+        summary_path = os.path.join(artifacts_path, METRICS_SUMMARY_FILENAME)
+        visualizer.plot_metrics_summary(results_df, problem_type, save_path=summary_path)
+        
+        # Classification-specific visualizations
+        if problem_type == 'classification':
+            # Confusion matrix
+            y_pred = best_model.predict(X_test_processed)
+            confusion_path = os.path.join(artifacts_path, CONFUSION_MATRIX_FILENAME)
+            visualizer.plot_confusion_matrix(y_test, y_pred, save_path=confusion_path)
+            
+            # ROC curves
+            roc_path = os.path.join(artifacts_path, ROC_CURVES_FILENAME)
+            visualizer.plot_roc_curves(tuned_models, X_test_processed, y_test, 
+                                      problem_type, save_path=roc_path)
+        
+        print("✓ All visualizations generated successfully")
+    except Exception as e:
+        print(f"Warning: Could not generate some visualizations: {e}")
     
     # Save artifacts
     print("\nSaving artifacts...")

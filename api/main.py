@@ -1,191 +1,245 @@
 """
-FastAPI application for AutoML
+Enhanced FastAPI backend for AutoML with full deployment support
 """
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import pandas as pd
-import numpy as np
+from typing import Optional, List, Dict, Any
 import os
 import sys
-from io import StringIO
+import pandas as pd
+import json
+import uuid
+from datetime import datetime
+import traceback
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.utils import load_model, load_json, create_artifacts_dir
-from config.config import ARTIFACTS_DIR, MODEL_FILENAME, PREPROCESSOR_FILENAME, METRICS_FILENAME
-
+# Initialize FastAPI app
 app = FastAPI(
     title="AutoTabML API",
-    description="Automated Machine Learning for Tabular Data",
-    version="1.0.0"
+    description="Automated Machine Learning API with Classification, Regression, and Time-Series support",
+    version="2.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
 )
 
-# Global variables to store loaded models
-loaded_model = None
-loaded_preprocessor = None
-loaded_metrics = None
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Create necessary directories
+UPLOAD_DIR = "uploads"
+MODELS_DIR = "saved_models"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
+
+# In-memory job storage
+jobs = {}
 
 
-class PredictionInput(BaseModel):
-    """Input schema for predictions"""
-    data: List[Dict[str, Any]]
-
-
-class TrainingResponse(BaseModel):
-    """Response schema for training"""
-    status: str
-    message: str
-    best_model: str
-    metrics: Dict[str, Any]
-    artifacts_path: str
-
-
-class PredictionResponse(BaseModel):
-    """Response schema for predictions"""
-    predictions: List[Any]
-    model_used: str
+class TrainRequest(BaseModel):
+    problem_type: str
+    target_column: str
+    date_column: Optional[str] = None
+    test_size: float = 0.2
+    sequence_length: int = 10
 
 
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
-        "message": "Welcome to AutoTabML API",
-        "version": "1.0.0",
+        "message": "AutoTabML API v2.0",
+        "status": "online",
         "endpoints": {
-            "train": "/train",
-            "predict": "/predict",
-            "health": "/health"
+            "docs": "/api/docs",
+            "upload": "/api/upload",
+            "train": "/api/train",
+            "jobs": "/api/jobs/{job_id}",
+            "models": "/api/models"
         }
     }
 
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    model_loaded = loaded_model is not None
-    return {
-        "status": "healthy",
-        "model_loaded": model_loaded
-    }
-
-
-@app.post("/train", response_model=TrainingResponse)
-async def train_model(
-    file: UploadFile = File(...),
-    target_column: str = Form(...),
-    metric: Optional[str] = Form(None)
-):
-    """
-    Train AutoML model on uploaded CSV
-    
-    Args:
-        file: CSV file
-        target_column: Name of target column
-        metric: Optional evaluation metric
-        
-    Returns:
-        Training results and metrics
-    """
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload CSV file and return preview"""
     try:
-        # Validate file type
         if not file.filename.endswith('.csv'):
-            raise HTTPException(status_code=400, detail="File must be a CSV")
+            raise HTTPException(status_code=400, detail="Only CSV files supported")
         
-        # Read CSV
+        file_id = str(uuid.uuid4())
+        file_path = os.path.join(UPLOAD_DIR, f"{file_id}.csv")
+        
         contents = await file.read()
-        df = pd.read_csv(StringIO(contents.decode('utf-8')))
+        with open(file_path, 'wb') as f:
+            f.write(contents)
         
-        # Validate target column
-        if target_column not in df.columns:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Target column '{target_column}' not found. Available: {list(df.columns)}"
+        df = pd.read_csv(file_path)
+        
+        return {
+            "file_id": file_id,
+            "filename": file.filename,
+            "rows": len(df),
+            "columns": list(df.columns),
+            "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
+            "preview": df.head(5).to_dict('records')
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/train")
+async def train_model(file_id: str, request: TrainRequest, background_tasks: BackgroundTasks):
+    """Start model training"""
+    try:
+        file_path = os.path.join(UPLOAD_DIR, f"{file_id}.csv")
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        job_id = str(uuid.uuid4())
+        jobs[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "progress": 0,
+            "created_at": datetime.now().isoformat(),
+            "file_id": file_id,
+            "request": request.dict()
+        }
+        
+        background_tasks.add_task(train_model_task, job_id, file_path, request)
+        
+        return {"job_id": job_id, "status": "queued"}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def train_model_task(job_id: str, file_path: str, request: TrainRequest):
+    """Background training task"""
+    try:
+        jobs[job_id]["status"] = "running"
+        jobs[job_id]["progress"] = 10
+        
+        if request.problem_type == 'timeseries':
+            from run_timeseries import run_timeseries_automl
+            result = run_timeseries_automl(
+                csv_path=file_path,
+                target_column=request.target_column,
+                date_column=request.date_column,
+                test_size=request.test_size,
+                sequence_length=request.sequence_length
+            )
+        else:
+            from run import run_automl
+            result = run_automl(
+                csv_path=file_path,
+                target_column=request.target_column,
+                test_size=request.test_size,
+                problem_type=None if request.problem_type == 'auto' else request.problem_type
             )
         
-        # Save uploaded file temporarily
-        temp_csv_path = os.path.join(ARTIFACTS_DIR, "temp_upload.csv")
-        create_artifacts_dir()
-        df.to_csv(temp_csv_path, index=False)
+        jobs[job_id]["progress"] = 90
         
-        # Import and run training pipeline
-        from run import run_automl
+        model_id = str(uuid.uuid4())
+        model_info = {
+            "model_id": model_id,
+            "job_id": job_id,
+            "problem_type": request.problem_type,
+            "best_model": result.get('best_model_name'),
+            "metrics": result.get('best_metrics', {}),
+            "artifacts_path": result.get('artifacts_path'),
+            "created_at": datetime.now().isoformat()
+        }
         
-        results = run_automl(
-            csv_path=temp_csv_path,
-            target_column=target_column,
-            metric=metric
-        )
+        model_path = os.path.join(MODELS_DIR, f"{model_id}.json")
+        with open(model_path, 'w') as f:
+            json.dump(model_info, f, indent=2)
         
-        # Load the trained model globally
-        global loaded_model, loaded_preprocessor, loaded_metrics
-        loaded_model = load_model(os.path.join(ARTIFACTS_DIR, MODEL_FILENAME))
-        loaded_preprocessor = load_model(os.path.join(ARTIFACTS_DIR, PREPROCESSOR_FILENAME))
-        loaded_metrics = load_json(os.path.join(ARTIFACTS_DIR, METRICS_FILENAME))
+        jobs[job_id]["status"] = "completed"
+        jobs[job_id]["progress"] = 100
+        jobs[job_id]["model_id"] = model_id
+        jobs[job_id]["result"] = model_info
         
-        return TrainingResponse(
-            status="success",
-            message="Model trained successfully",
-            best_model=results['best_model_name'],
-            metrics=results['best_metrics'],
-            artifacts_path=ARTIFACTS_DIR
-        )
-    
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+        jobs[job_id]["status"] = "failed"
+        jobs[job_id]["error"] = str(e)
+        jobs[job_id]["traceback"] = traceback.format_exc()
 
 
-@app.post("/predict", response_model=PredictionResponse)
-async def predict(input_data: PredictionInput):
-    """
-    Make predictions using trained model
+@app.get("/api/jobs/{job_id}")
+async def get_job_status(job_id: str):
+    """Get job status"""
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return jobs[job_id]
+
+
+@app.get("/api/models")
+async def list_models():
+    """List all models"""
+    models = []
+    for filename in os.listdir(MODELS_DIR):
+        if filename.endswith('.json'):
+            with open(os.path.join(MODELS_DIR, filename), 'r') as f:
+                models.append(json.load(f))
+    return {"models": sorted(models, key=lambda x: x['created_at'], reverse=True)}
+
+
+@app.get("/api/models/{model_id}")
+async def get_model(model_id: str):
+    """Get model details"""
+    model_path = os.path.join(MODELS_DIR, f"{model_id}.json")
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail="Model not found")
     
-    Args:
-        input_data: JSON data for prediction
-        
-    Returns:
-        Predictions
-    """
-    global loaded_model, loaded_preprocessor
+    with open(model_path, 'r') as f:
+        return json.load(f)
+
+
+@app.get("/api/artifacts/{model_id}/{filename}")
+async def get_artifact(model_id: str, filename: str):
+    """Get model artifact"""
+    model_path = os.path.join(MODELS_DIR, f"{model_id}.json")
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail="Model not found")
     
-    try:
-        # Check if model is loaded
-        if loaded_model is None or loaded_preprocessor is None:
-            # Try to load from artifacts
-            try:
-                loaded_model = load_model(os.path.join(ARTIFACTS_DIR, MODEL_FILENAME))
-                loaded_preprocessor = load_model(os.path.join(ARTIFACTS_DIR, PREPROCESSOR_FILENAME))
-            except:
-                raise HTTPException(
-                    status_code=400,
-                    detail="No trained model found. Please train a model first using /train endpoint"
-                )
-        
-        # Convert input to DataFrame
-        df = pd.DataFrame(input_data.data)
-        
-        # Preprocess
-        X_processed = loaded_preprocessor.transform(df)
-        
-        # Predict
-        predictions = loaded_model.predict(X_processed)
-        
-        # Convert numpy types to Python types for JSON serialization
-        predictions_list = [float(p) if isinstance(p, (np.floating, np.integer)) else p 
-                          for p in predictions.tolist()]
-        
-        return PredictionResponse(
-            predictions=predictions_list,
-            model_used=loaded_model.__class__.__name__
-        )
+    with open(model_path, 'r') as f:
+        model_info = json.load(f)
     
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+    artifact_path = os.path.join(model_info['artifacts_path'], filename)
+    if not os.path.exists(artifact_path):
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    
+    return FileResponse(artifact_path)
+
+
+@app.delete("/api/models/{model_id}")
+async def delete_model(model_id: str):
+    """Delete model"""
+    model_path = os.path.join(MODELS_DIR, f"{model_id}.json")
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    os.remove(model_path)
+    return {"message": "Model deleted"}
+
+
+# Mount frontend
+if os.path.exists("frontend"):
+    app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

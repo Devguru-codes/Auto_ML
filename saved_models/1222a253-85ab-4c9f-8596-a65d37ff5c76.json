@@ -1,0 +1,16 @@
+{
+  "model_id": "1222a253-85ab-4c9f-8596-a65d37ff5c76",
+  "job_id": "7015b814-3ed6-4709-919f-b5e8dd37a848",
+  "problem_type": "timeseries",
+  "best_model": "bidirectional_lstm",
+  "metrics": {
+    "model_name": "bidirectional_lstm",
+    "mae": 3.894656546572515,
+    "rmse": 4.954590361307125,
+    "mape": 2.8690541425432823,
+    "smape": 2.848548399998883,
+    "r2": 0.4397279418455443
+  },
+  "artifacts_path": "artifacts",
+  "created_at": "2026-02-15T00:41:05.622807"
+}

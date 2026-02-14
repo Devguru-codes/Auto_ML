@@ -1,54 +1,32 @@
-# 🤖 AutoTabML - Automated Machine Learning for Tabular Data
+# 🤖 AutoTabML - Enterprise-Grade AutoML Platform
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-green.svg)](https://fastapi.tiangolo.com/)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15-orange.svg)](https://tensorflow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**AutoTabML** is a fully automated Machine Learning pipeline for tabular datasets. Upload a CSV, specify the target column, and get a trained, optimized model with explanations—all automatically!
+**AutoTabML** is a production-ready Automated Machine Learning platform that handles **Classification, Regression, and Time-Series Forecasting**. It features a modern web interface, REST API, and Docker deployment support.
 
-## ✨ Features
-
-- 🎯 **Automatic Problem Detection** - Detects classification vs regression
-- 🔧 **Smart Preprocessing** - Handles numeric & categorical features automatically
-- 🏆 **Model Zoo** - Trains multiple models (Logistic Regression, Random Forest, Gradient Boosting, XGBoost)
-- ⚡ **Hyperparameter Tuning** - Uses RandomizedSearchCV for optimization
-- 📊 **Model Evaluation** - Comprehensive metrics (Accuracy, F1, ROC-AUC, RMSE, MAE, R²)
-- 🔍 **Explainability** - SHAP-based feature importance and explanations
-- 🚀 **REST API** - FastAPI endpoints for training and prediction
-- 💾 **Model Persistence** - Saves best model and preprocessing pipeline
+![AutoTabML UI](https://via.placeholder.com/800x400?text=AutoTabML+Modern+Interface)
 
 ---
 
-## 📁 Project Structure
+## ✨ Key Features
 
-```
-AutoML/
-│
-├── config/
-│   └── config.py              # Configuration settings
-├── data/
-│   ├── classification_example.csv
-│   └── regression_example.csv
-├── preprocessing/
-│   └── preprocessor.py        # Automatic preprocessing pipeline
-├── models/
-│   └── model_zoo.py           # Model factory
-├── tuner/
-│   └── tuner.py               # Hyperparameter tuning
-├── evaluator/
-│   └── evaluator.py           # Model evaluation
-├── explainability/
-│   └── shap_explainer.py      # SHAP explanations
-├── api/
-│   └── main.py                # FastAPI application
-├── utils/
-│   ├── utils.py               # Utility functions
-│   └── problem_detector.py    # Problem type detection
-├── artifacts/                 # Saved models and plots
-├── run.py                     # Main pipeline runner
-├── generate_example_data.py   # Generate test datasets
-└── requirements.txt
-```
+### 🧠 Core Capabilities
+- **Multi-Modal Support**: Classification, Regression, and Time-Series Forecasting
+- **Deep Learning Integration**: Auto-detects large datasets and trains **TensorFlow/Keras Neural Networks**
+- **Smart Optimization**: Uses **Optuna (Bayesian Optimization)** for hyperparameter tuning
+- **Advanced Time-Series**:
+  - **Models**: ARIMA, Prophet, LSTM, GRU, Bidirectional LSTM
+  - **Features**: Auto-seasonality detection, stationarity testing, sequence generation
+- **Explainability**: SHAP values and Feature Importance charts
+
+### 🚀 Production Ready
+- **Modern Web UI**: Drag-and-drop interface, real-time progress, interactive charts
+- **REST API**: Full-featured FastAPI backend with Swagger docs
+- **Dockerized**: One-command deployment with Docker Compose
+- **Visualizations**: Model comparison, Confusion Matrices, ROC Curves, Training History
 
 ---
 
@@ -61,276 +39,97 @@ AutoML/
 git clone <your-repo-url>
 cd AutoML
 
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows:
-.\venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2️⃣ Generate Example Data
+### 2️⃣ Run Locally (Web Interface)
 
 ```bash
-python generate_example_data.py
+# Start the server
+python -m uvicorn api.main:app --reload --port 8000
 ```
 
-This creates two example datasets:
-- `data/classification_example.csv` - Multi-class classification
-- `data/regression_example.csv` - House price prediction
+Open your browser to: **http://localhost:8000**
 
-### 3️⃣ Run AutoML Pipeline
-
-**Classification Example:**
-```bash
-python run.py --csv data/classification_example.csv --target target
-```
-
-**Regression Example:**
-```bash
-python run.py --csv data/regression_example.csv --target price
-```
-
-**With Custom Metric:**
-```bash
-python run.py --csv data/classification_example.csv --target target --metric f1_weighted
-```
-
-### 4️⃣ Start API Server
+### 3️⃣ Docker Deployment
 
 ```bash
-# From api directory
-cd api
-uvicorn main:app --reload
-
-# Or directly
-python api/main.py
-```
-
-API will be available at: `http://localhost:8000`
-
-Interactive docs: `http://localhost:8000/docs`
-
----
-
-## 📡 API Usage
-
-### Training Endpoint
-
-**POST** `/train`
-
-Upload a CSV file and train a model:
-
-```bash
-curl -X POST "http://localhost:8000/train" \
-  -F "file=@data/classification_example.csv" \
-  -F "target_column=target"
-```
-
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Model trained successfully",
-  "best_model": "xgboost",
-  "metrics": {
-    "accuracy": 0.95,
-    "f1_score": 0.94,
-    "roc_auc": 0.98
-  },
-  "artifacts_path": "artifacts"
-}
-```
-
-### Prediction Endpoint
-
-**POST** `/predict`
-
-Make predictions with trained model:
-
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data": [
-      {
-        "feature_0": 1.5,
-        "feature_1": -0.3,
-        "category_A": "Type1",
-        "category_B": "High"
-      }
-    ]
-  }'
-```
-
-**Response:**
-```json
-{
-  "predictions": [2],
-  "model_used": "XGBClassifier"
-}
+docker-compose up -d
 ```
 
 ---
 
-## 🎯 How It Works
+## 📊 Supported Models
 
-### 1. **Problem Detection**
-- Analyzes target variable
-- If numeric with >20 unique values → Regression
-- Otherwise → Classification
+| Problem Type | Traditional ML | Deep Learning |
+|--------------|----------------|---------------|
+| **Classification** | Logistic Regression, Random Forest, XGBoost, Gradient Boosting | Feed-Forward Neural Network (TensorFlow) |
+| **Regression** | Linear Regression, Random Forest, XGBoost, Gradient Boosting | Feed-Forward Neural Network (TensorFlow) |
+| **Time-Series** | ARIMA, Prophet | LSTM, GRU, Bidirectional LSTM |
 
-### 2. **Preprocessing**
-- **Numeric features**: Mean imputation → StandardScaler
-- **Categorical features**: Mode imputation → OneHotEncoder
-- Uses sklearn `ColumnTransformer` and `Pipeline`
-
-### 3. **Model Training**
-Trains 4 models for each problem type:
-
-**Classification:**
-- Logistic Regression
-- Random Forest Classifier
-- Gradient Boosting Classifier
-- XGBoost Classifier
-
-**Regression:**
-- Linear Regression
-- Random Forest Regressor
-- Gradient Boosting Regressor
-- XGBoost Regressor
-
-### 4. **Hyperparameter Tuning**
-- Uses `RandomizedSearchCV`
-- 5-fold cross-validation
-- 20 iterations per model
-
-### 5. **Model Evaluation**
-
-**Classification Metrics:**
-- Accuracy
-- F1-Score (weighted)
-- ROC-AUC
-
-**Regression Metrics:**
-- RMSE (Root Mean Squared Error)
-- MAE (Mean Absolute Error)
-- R² (Coefficient of Determination)
-
-### 6. **Explainability**
-- Generates SHAP summary plots
-- Feature importance visualization
-- Saved to `artifacts/` directory
+**Note on Neural Networks:**
+Neural networks are automatically enabled when the dataset size exceeds `1000` samples (configurable in `config/config.py`).
 
 ---
 
-## 📊 Output Artifacts
+## 💻 CLI Usage
 
-After training, the following files are saved in `artifacts/`:
+You can also run pipelines directly from the command line:
 
-| File | Description |
-|------|-------------|
-| `best_model.pkl` | Trained best model |
-| `preprocessor.pkl` | Fitted preprocessing pipeline |
-| `metrics.json` | All model metrics |
-| `shap_summary.png` | SHAP summary plot |
-| `feature_importance.png` | Feature importance chart |
-
----
-
-## 🛠️ Technology Stack
-
-| Component | Technology |
-|-----------|------------|
-| ML Framework | scikit-learn |
-| Gradient Boosting | XGBoost |
-| Hyperparameter Tuning | RandomizedSearchCV |
-| Explainability | SHAP |
-| API | FastAPI |
-| Data Processing | Pandas, NumPy |
-| Visualization | Matplotlib, Seaborn |
-
----
-
-## 📝 Command Line Arguments
-
+### Generate Test Data
 ```bash
-python run.py --help
+python generate_data.py
 ```
 
-**Arguments:**
-- `--csv` (required): Path to CSV file
-- `--target` (required): Target column name
-- `--metric` (optional): Evaluation metric (auto-selected if not provided)
-- `--test-size` (optional): Test set fraction (default: 0.2)
+### Classification/Regression
+```bash
+python run.py --csv data/classification_data.csv --target target
+```
 
----
-
-## 🎓 Example Workflow
-
-```python
-# 1. Generate example data
-python generate_example_data.py
-
-# 2. Train model
-python run.py --csv data/classification_example.csv --target target
-
-# 3. Check artifacts
-ls artifacts/
-# Output: best_model.pkl, preprocessor.pkl, metrics.json, shap_summary.png, feature_importance.png
-
-# 4. Start API
-python api/main.py
-
-# 5. Make predictions via API
-# (Use curl or Postman as shown above)
+### Time-Series Forecasting
+```bash
+python run_timeseries.py \
+  --csv data/stock_prices.csv \
+  --target price \
+  --date-column date \
+  --sequence-length 20
 ```
 
 ---
 
-## 🔮 Future Enhancements (V2)
+## 📁 Project Structure
 
-- [ ] LightGBM and CatBoost support
-- [ ] Bayesian Optimization (Optuna)
-- [ ] Auto feature engineering
-- [ ] Model ensembling (Stacking)
-- [ ] Streamlit UI
-- [ ] Docker deployment
-- [ ] Time-series support
-- [ ] MLflow integration
+```
+AutoML/
+├── api/                 # FastAPI Backend
+├── frontend/            # HTML/CSS/JS Frontend
+├── models/              # Model Definitions (Sklearn + Keras)
+├── timeseries/          # Time-Series Module (ARIMA, LSTM, etc.)
+├── tuner/               # Optuna Hyperparameter Tuner
+├── utils/               # Visualizations & Helpers
+├── artifacts/           # Saved Models & Plots
+├── Dockerfile           # Docker Config
+├── docker-compose.yml   # Docker Compose
+└── config/              # Configuration (Thresholds, Grids)
+```
+
+---
+
+## 🔧 Configuration
+
+Customize behavior in `config/config.py`:
+
+- **NEURAL_NET_THRESHOLD**: Min samples to trigger NN training (Default: 1000)
+- **OPTUNA_CONFIG**: Trials, timeout, and cross-validation settings
+- **Model Hyperparameters**: Search spaces for all models
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
+Contributions are welcome! Please submit a Pull Request.
 
 ## 📄 License
 
-This project is licensed under the MIT License.
-
----
-
-## 👨‍💻 Author
-
-Built with ❤️ for the ML community
-
----
-
-## 🙏 Acknowledgments
-
-- scikit-learn team
-- XGBoost developers
-- SHAP library creators
-- FastAPI framework
-
----
-
-**Happy AutoML-ing! 🚀**
+MIT License. Built for the ML community.

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoTabML - Automated Machine Learning</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>🤖 AutoTabML</h1>
+                <p>Automated Machine Learning Platform</p>
+            </div>
+            <nav class="nav-tabs">
+                <button class="tab-btn active" data-tab="upload">Upload Data</button>
+                <button class="tab-btn" data-tab="train">Train Model</button>
+                <button class="tab-btn" data-tab="results">Results</button>
+                <button class="tab-btn" data-tab="models">My Models</button>
+            </div>
+        </header>
+
+        <!-- Upload Tab -->
+        <div class="tab-content active" id="upload-tab">
+            <div class="card">
+                <h2>📁 Upload Your Dataset</h2>
+                <div class="upload-area" id="upload-area">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                    <p>Drag & drop your CSV file here</p>
+                    <p class="upload-hint">or click to browse</p>
+                    <input type="file" id="file-input" accept=".csv" hidden>
+                </div>
+                
+                <div id="file-info" class="file-info" style="display: none;">
+                    <h3>Dataset Preview</h3>
+                    <div id="dataset-stats"></div>
+                    <div id="dataset-preview"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Train Tab -->
+        <div class="tab-content" id="train-tab">
+            <div class="card">
+                <h2>⚙️ Configure Training</h2>
+                
+                <div class="form-group">
+                    <label for="problem-type">Problem Type</label>
+                    <select id="problem-type" class="form-control">
+                        <option value="auto">Auto-detect</option>
+                        <option value="classification">Classification</option>
+                        <option value="regression">Regression</option>
+                        <option value="timeseries">Time-Series Forecasting</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="target-column">Target Column</label>
+                    <select id="target-column" class="form-control">
+                        <option value="">Select target column...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="date-column-group" style="display: none;">
+                    <label for="date-column">Date Column (for time-series)</label>
+                    <select id="date-column" class="form-control">
+                        <option value="">Auto-detect</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="test-size">Test Set Size: <span id="test-size-value">20%</span></label>
+                    <input type="range" id="test-size" class="form-range" min="10" max="40" value="20">
+                </div>
+
+                <div class="form-group" id="sequence-length-group" style="display: none;">
+                    <label for="sequence-length">Sequence Length: <span id="sequence-length-value">10</span></label>
+                    <input type="range" id="sequence-length" class="form-range" min="5" max="50" value="10">
+                </div>
+
+                <button id="train-btn" class="btn btn-primary" disabled>
+                    🚀 Start Training
+                </button>
+
+                <div id="training-progress" class="progress-container" style="display: none;">
+                    <h3>Training in Progress...</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p id="progress-status">Initializing...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Tab -->
+        <div class="tab-content" id="results-tab">
+            <div class="card">
+                <h2>📊 Training Results</h2>
+                <div id="results-content">
+                    <p class="empty-state">No results yet. Train a model to see results here.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Models Tab -->
+        <div class="tab-content" id="models-tab">
+            <div class="card">
+                <h2>💾 Saved Models</h2>
+                <div id="models-list">
+                    <p class="empty-state">No models saved yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
