@@ -1,0 +1,18 @@
+# Development Dependencies for AutoML Testing
+
+# Testing Framework
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-xdist==3.5.0
+
+# Code Quality
+flake8==6.1.0
+black==23.12.1
+isort==5.13.2
+
+# Type Checking
+mypy==1.7.1
+
+# Documentation
+sphinx==7.2.6
+sphinx-rtd-theme==2.0.0
