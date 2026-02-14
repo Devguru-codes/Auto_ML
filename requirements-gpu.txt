@@ -1,14 +1,7 @@
-# AutoML Requirements
-# 
-# IMPORTANT: Choose the right requirements file for your setup:
-#
-# GPU (NVIDIA CUDA):  pip install -r requirements-gpu.txt
-# CPU Only:           pip install -r requirements-cpu.txt
-#
-# For GPU setup guide, see GPU_SETUP.md
-#
-# Default installation (CPU-only):
+# AutoML Requirements - GPU Version (NVIDIA CUDA)
+# Use this if you have an NVIDIA GPU and want GPU acceleration
 
+# Core ML Libraries
 scikit-learn==1.3.2
 xgboost==2.0.3
 pandas==2.1.4
@@ -19,7 +12,10 @@ seaborn==0.13.1
 optuna==3.5.0
 pydantic==2.5.3
 joblib==1.3.2
-tensorflow==2.15.0
+
+# TensorFlow with GPU support
+# Note: Requires CUDA 11.8 and cuDNN 8.6
+tensorflow[and-cuda]==2.15.0
 scikeras==0.12.0
 
 # Time-series libraries
